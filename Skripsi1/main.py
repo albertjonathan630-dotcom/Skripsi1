@@ -28,7 +28,6 @@ def predict(data: InputData):
         data.user_total_karma, data.account_age_days,
         data.comment_length
     ]])
-
     features_scaled = scaler.transform(features)
     proba      = model.predict_proba(features_scaled)[0][1]
     prediction = 1 if proba >= 0.30 else 0
