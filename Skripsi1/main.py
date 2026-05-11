@@ -1,16 +1,13 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
 import joblib
 import numpy as np
+from pydantic import BaseModel
 
-app = FastAPI(
-    title="Buzzer Detection API",
-    description="Hybrid ML untuk Deteksi Buzzer di Media Sosial"
-)
+app = FastAPI()
+model  = joblib.load("model.pkl")
+scaler = joblib.load("scaler.pkl")
 
-model = joblib.load("model.pkl")
-
-class UserFeatures(BaseModel):
+class InputData(BaseModel):
     score: float
     controversiality: float
     user_comment_karma: float
@@ -21,30 +18,24 @@ class UserFeatures(BaseModel):
 
 @app.get("/")
 def root():
-    return {
-        "status": "active",
-        "message": "Buzzer Detection API is running!",
-        "model": "Hybrid Stacking Ensemble"
-    }
+    return {"status": "Model is running!"}
 
 @app.post("/predict")
-def predict(data: UserFeatures):
+def predict(data: InputData):
     features = np.array([[
-        data.score,
-        data.controversiality,
-        data.user_comment_karma,
-        data.user_link_karma,
-        data.user_total_karma,
-        data.account_age_days,
+        data.score, data.controversiality,
+        data.user_comment_karma, data.user_link_karma,
+        data.user_total_karma, data.account_age_days,
         data.comment_length
     ]])
 
-    proba = model.predict_proba(features)[0][1]
-    label = "Terindikasi Buzzer" if proba >= 0.50 else "Normal"
+    features_scaled = scaler.transform(features)
+    proba      = model.predict_proba(features_scaled)[0][1]
+    prediction = 1 if proba >= 0.30 else 0
+    label      = "Akun Buzzer" if prediction == 1 else "Pengguna Asli"
 
     return {
-        "prediction": label,
-        "buzzer_probability": round(float(proba), 4),
-        "normal_probability": round(1 - float(proba), 4),
-        "threshold": 0.50
+        "prediction": prediction,
+        "label": label,
+        "confidence": round(float(proba), 4)
     }
